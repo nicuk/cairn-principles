@@ -65,7 +65,9 @@ palette, the icon and the README structure are shared by copying.
 **Rejected:** a single repository holding all three, which makes one plugin's listing
 depend on another's history.
 
-**Consequence:** copies can drift. A check that the shared parts stay identical is planned.
+**Consequence:** copies can drift, so `scripts/check_drift.py` compares every plugin repo
+against the reference here, on every push and daily, and its self-test proves each check can
+fail.
 
 ### D7. Searchable repository names, distinctive plugin names
 

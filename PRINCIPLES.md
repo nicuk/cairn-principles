@@ -87,8 +87,8 @@ Each principle has four parts: **Trigger** (when it applies), **Do** (what to do
 - **Cheapest:** export the function and call it from both places.
 - **Where Cairn enforces it:** Memory's rule that generated status files enforce invariants,
   not byte-for-byte copies. (The family's own visuals share one generator, copied into each
-  repo because a plugin must be self-contained. A check that the copies haven't drifted is
-  planned.)
+  repo because a plugin must be self-contained. A daily check fails if the copies
+  drift.)
 
 ## 6. Check the instrument, not only the code
 

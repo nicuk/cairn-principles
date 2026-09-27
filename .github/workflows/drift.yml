@@ -1,0 +1,33 @@
+# The plugins copy the shared parts (palette, stones, icon, logo, README layout, family
+# table) because each must be self-contained. This fails when a copy drifts from the
+# reference here. Daily, because the plugin repos change without touching this one.
+name: drift
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: nicuk/claude-md-memory-architecture, path: plugins/claude-md-memory-architecture }
+      - uses: actions/checkout@v4
+        with: { repository: nicuk/llm-silent-failure-audit, path: plugins/llm-silent-failure-audit }
+      - uses: actions/checkout@v4
+        with: { repository: nicuk/did-ai-really-fix-it, path: plugins/did-ai-really-fix-it }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The check can fail (every planted defect is caught)
+        run: python scripts/check_drift.py --self-test
+      - name: The three plugin repos match the reference
+        run: python scripts/check_drift.py plugins/claude-md-memory-architecture plugins/llm-silent-failure-audit plugins/did-ai-really-fix-it

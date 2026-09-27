@@ -15,6 +15,8 @@ Cairn plugins. The plugins live in their own repos: `claude-md-memory-architectu
 | `EVIDENCE.md` | test results, including the nulls; a result goes in only if it could have come out the other way |
 | `DECISIONS.md` | design decisions; add a superseding entry, never edit an old one |
 | `assets/make_assets.py` | the visuals, from the palette and stones shared across the family |
+| `assets/icon.svg`, `assets/cairn-logo.png` | the reference copies every plugin repo must match |
+| `scripts/check_drift.py` | fails when a plugin repo's shared parts drift from the reference; runs daily |
 
 ## Rules
 
