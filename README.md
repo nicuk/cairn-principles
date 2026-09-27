@@ -2,7 +2,7 @@
 
 ![A claim with an enforcer stays true. A claim with only an author rots.](assets/hero.svg)
 
-**[The plugins](#the-plugins)** · **[The principles](PRINCIPLES.md)** · **[Evidence](EVIDENCE.md)** · **[Design decisions](DECISIONS.md)**
+**[The plugins](#the-plugins)** · **[The principles](PRINCIPLES.md)** · **[Evidence](EVIDENCE.md)** · **[Case studies](#case-studies)** · **[Design decisions](DECISIONS.md)**
 
 AI systems report on themselves in sentences and numbers: *the agent remembers we use
 uv; confidence 92%; fixed, tested, all green.* Each one is a claim. Most are never checked,
@@ -45,6 +45,12 @@ themselves to it too:
   networking import appears.
 - **Every result is published, including the nulls.** When a test showed a strong model
   didn't need a plugin to get the right answer, that's in [EVIDENCE.md](EVIDENCE.md) too.
+
+## Case studies
+
+- [The confidence score that could never say "high"](case-studies/signals-confidence-capped.md) (Cairn Signals)
+- [The dead auth system that took three rounds to find](case-studies/verify-dead-auth-rounds.md) (Cairn Verify)
+- [The memory index that cost 2,500 tokens a session, and hid an "active" plan](case-studies/memory-index-that-cost-every-session.md) (Cairn Memory)
 
 ## How they're built
 
