@@ -1,7 +1,7 @@
 # Evidence
 
 What each plugin has been tested on, what the results were (including the ones that
-didn't favour it), and what hasn't been tested yet. As of 2026-09-27 (Memory and Signals 1.2.0, Verify 1.1.0).
+didn't favour it), and what hasn't been tested yet. As of 2026-09-27 (all three plugins at 1.2.0).
 
 The same rule applies throughout: a result is only reported if it could have come out the
 other way.
@@ -57,14 +57,14 @@ fresh prompts they weren't changed for. One run per prompt, so treat single miss
 
 | | |
 |---|---|
-| **Self-test** | 19 checks, each fired on a planted defect, plus false-positive guards built from honest real commits; run in CI |
+| **Self-test** | 55 checks in 1.2.0 (23 in 1.1.0): each detection fires on a planted defect, and each false-alarm fix has a case that must stay quiet, broken once to prove it can fail; plus a check that a `GIT_DIR` inherited from a git hook never reaches the real repository; run in CI |
 | **With vs without the skill** | **No accuracy difference.** Over two rounds and 8 runs, on two made-up apps built to overclaim (a fix in a dead copy, a test dropped in config, a dynamic import broken by a deletion, an unwired feature), both conditions found every planted problem. With the skill, every run also proved each verdict by running the code at each commit, gave a score, and ended with a message to paste to the agent, at about 70 s more per run |
 | **On a real codebase** | On a 504-file app built with coding agents, the orphan scan found all 22 dead files the repo's own guard listed, plus 10 real ones the guard missed, in 0.6 s |
 | **Precision on real commits** | Run on twelve real commits, the first version flagged 18 claims as unproven, and about half were prose ("thresholds are fixed"). After two precision fixes, 7, each a fair question. An honest deletion commit gets zero contradictions |
 | **Known limit** | it can't follow an import built from a string at runtime, so the skill starts the app once before calling anything dead |
 | **Trigger rate** | First set: 10 of 10 prompts it should handle, 0 of 10 near-misses. Fresh set, same description: 4 of 5, 0 false triggers |
-| **On repositories the author didn't build** | measured on three outside repos: 7% precision for both `claims` and `orphans`, 6 of 7 planted overclaims found. A fix is in progress; the numbers will be published before and after |
-| **Not yet tested** | the with/without comparison on a large repository (the fixture is built: outline/outline with a dead copy behind a `~/` alias and a three-deep chain) |
+| **On repositories the author didn't build** | 1.1.0: 7% precision for both `claims` and `orphans`. 1.2.0: 31% and 48%, with every real finding kept, and 7 of 7 planted overclaims found. See [below](#on-repositories-the-author-didnt-build) |
+| **On a large real repository** | outline/outline (about 2,800 files), with a fix planted in a dead copy behind a `~/` alias. **With and without the skill both found it** on the founder's question; on "it keeps coming back", the run without the skill missed a must-pass item (its rules never named the live file). One run each. See [below](#a-large-repository-where-the-script-should-matter) |
 
 ## On repositories the author didn't build
 
@@ -164,6 +164,75 @@ because it didn't know `debug_mode`, `asyncio.create_task(...)` or `.invoke/.cha
   three of which are noise.
 - The labels are one reviewer's, from reading the code.
 
+### Cairn Verify, on three repositories written largely by coding agents
+
+hanzei/jot @91717a8 (TypeScript and Go, 15 commits co-authored by Claude), thesysdev/openui
+@faf911b (a TypeScript monorepo, 15 such commits), AI-Riksarkivet/rask @990091b (Python and
+SvelteKit, 20 such commits). Every `claims` finding was labelled; `orphans` was sampled (up
+to 20 files per repo, fixed seed) and each file checked through every way it could be
+loaded. Recall used a copy of jot with 7 planted overclaims and 2 honest commits, answer
+key written first.
+
+| | 1.1.0 | 1.2.0 |
+|---|---|---|
+| `claims` findings | 63 | 19 |
+| `claims` precision | 7% (4 of 58 decided) | 31% (4 of 13) |
+| The 4 real `claims` findings | | all 4 still reported |
+| Files `orphans` called dead (jot / openui / rask) | 3 / 870 / 614 | 1 / 194 / 11 |
+| `orphans` precision, sampled | 7% (3 of 43) | 48% (15 of 31) |
+| The 3 real orphans of the first sample | | all 3 still reported |
+| Planted overclaims found, default settings | 6 of 7 | 7 of 7 |
+| False alarms on the honest commits | 0 of 2 | 0 of 2 |
+
+**Why 1.1.0 was that noisy.** `claims` read backticked dotted names (`minio.bucket`,
+`json.loads`) as files that "exist nowhere" (22 findings, all false); it didn't count
+Playwright tests as testing anything, since they drive a browser instead of importing the
+code; and a renamed-and-rewritten test read as "tests removed". `orphans` only looked for
+entry points at the repository root, so every app inside a monorepo (Next.js under `docs/`,
+SvelteKit, Python packages under `packages/*/src`) looked dead. The planted fix in a dead
+copy was missed for the same reason: the app's entry was named only in `index.html`.
+
+**What it still gets wrong, and the caveats.**
+- Ten of the 1.2.0 fixes were added after the first re-measure showed the gap, and the
+  orphan sample was then redrawn from the new output. Part of the 48% is measured on data
+  those fixes were tuned on.
+- The false orphans left are mostly modules loaded by name at runtime (Ray job runners,
+  template overlays, a framework's folder conventions), which no import graph sees. That
+  is what `--smoke` and `--entry` are for, and why the skill starts the app before calling
+  anything dead.
+- `claims` still has 9 false findings: mostly proof words used to describe a bug rather
+  than claim a result, and scripts wired through package.json rather than an import.
+- Reporting each finding once per commit, rather than once per claim, cut duplicates; the
+  commit's other claims now point to where the finding is listed.
+- On its own release pull request, the Action called "31 new self-test checks" contradicted,
+  because the tests live inside the script. That class (inline tests, as in Rust's
+  `#[test]`) now reads as unproven; the case is in the self-test.
+
+### A large repository, where the script should matter
+
+The Verify comparisons above showed no accuracy difference, and the likely reason was size:
+the fixtures were small enough to read whole. So this one is a real 2,800-file app
+(outline/outline at 0e704e6), with an agent-style fix planted in a copy of the live
+`app/utils/urls.ts` that sits behind the `~/` alias, held up by three files nothing renders,
+and a passing test that imports the copy. The answer key was written before planting. The
+builder, key and prompts are in [`evals/outline/`](https://github.com/nicuk/did-ai-really-fix-it/tree/main/evals/outline).
+
+| Prompt | With the skill | Without it |
+|---|---|---|
+| "Is the fix real?" (a founder, before telling customers) | 7 of 7 must-pass, 10 of 10 overall; 150 s, 12 tool calls | 7 of 7 must-pass, 10 of 10 overall; 87 s, 9 tool calls |
+| "It keeps coming back" | 7 of 7 must-pass, 8 of 9 overall; 177 s, 13 tool calls | **6 of 7 must-pass**, 6 of 9 overall: its rules for AGENTS.md were generic and never named the live file, and it listed the dead files flat, to delete by name; 89 s, 9 tool calls |
+
+**What this shows, and what it doesn't.** The hypothesis was that without the script a
+model would miss the dead copy in a large repo. It didn't: both conditions traced the
+imports and found the copy, the unrendered chain and the live module in under 15 tool
+calls. The skill's difference was in what it handed the founder: a verdict per claim, and
+rules naming the live file so the loop stops. Neither run deleted in rounds with a build
+after each. The script's `claims` check on its own passes the fake fix (12 claims, no
+contradiction), and both with-skill runs said so and used the orphan scan's twin line as
+their evidence. One run per cell, so treat it as indicative. Both runs on the second prompt
+also noticed a second bug the key didn't plant (the live check compares case exactly and
+the router doesn't); it wasn't graded.
+
 ---
 
 ## Reproducing
@@ -177,7 +246,8 @@ python skills/verify-agent-claims/scripts/verify_claims.py --self-test     # in 
 ```
 
 The with/without comparisons can be re-run from each plugin repo's `evals/` folder: a
-builder that recreates each fixture, the prompts, and the answer key. Two comparisons ran
+builder that recreates each fixture, the prompts, and the answer key. Verify's large-repo test is in
+`evals/outline/` and rebuilds from outline/outline at a pinned commit. Two comparisons ran
 on private material and aren't published: Memory's audit prompt used a real memory folder
 (the published fixture is a synthetic stand-in with the same problems), and one Signals
 prompt used a private production codebase.
