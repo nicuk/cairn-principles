@@ -14,7 +14,9 @@ What it can't do locally, it says so and skips:
   - `uses:` steps (actions); checkout and setup-python are what the local worktree replaces
   - steps with an `if:` or with ${{ … }} expressions, which need GitHub's context
   - `pip install` lines (install once on this machine; a missing module then fails loudly)
-Paths under `plugins/<repo>` (checked out from sibling repos in CI) map to `../<repo>` here.
+Sibling repos that CI checks out into `plugins/<repo>` are cloned there from `../<repo>` (their
+committed HEAD, which is what CI would see once pushed), and GITHUB_WORKSPACE is set, so each
+step runs exactly as written.
 If `claude` is on PATH and the repo is a plugin, `claude plugin validate --strict` runs too.
 """
 from __future__ import annotations
@@ -66,7 +68,9 @@ def main() -> int:
     workflows = sorted((repo / ".github" / "workflows").glob("*.y*ml"))
     bash = shutil.which("bash") or "bash"
     tmp = Path(tempfile.mkdtemp(prefix="ci-local-"))
-    wt = tmp / "wt"
+    wt = tmp / repo.name          # named like the repo: some checks read the folder name
+    runner_temp = tmp / "runner-temp"
+    runner_temp.mkdir()
     git("worktree", "add", "--detach", str(wt), sha, cwd=repo)
     failed: list[str] = []
     ran = 0
@@ -75,13 +79,26 @@ def main() -> int:
             steps = push_steps(wt / ".github" / "workflows" / wf.name) if (wt / ".github" / "workflows" / wf.name).exists() else []
             for name, script in steps:
                 script = "\n".join(l for l in script.splitlines() if not l.strip().startswith("pip install"))
-                script = re.sub(r"\bplugins/([A-Za-z0-9._-]+)", lambda m: str(repo.parent / m.group(1)).replace("\\", "/"), script)
-                missing = [p for p in re.findall(r"(?:^|\s)(/[^\s]+|[A-Za-z]:/[^\s]+)", script) if not Path(p).exists()]
+                # CI checks sibling repos out into plugins/<repo>; build the same folder here from
+                # the local sibling clones, so the step runs unmodified.
+                missing = []
+                for sib in sorted(set(re.findall(r"\bplugins/([A-Za-z0-9._-]+)", script))):
+                    src, dst = repo.parent / sib, wt / "plugins" / sib
+                    if dst.exists():
+                        continue
+                    if not (src / ".git").exists():
+                        missing.append(str(src))
+                        continue
+                    subprocess.run(["git", "clone", "-q", str(src), str(dst)], check=True, capture_output=True)
                 if missing:
-                    print(f"  skip  {name}  (not on this machine: {', '.join(missing)})")
+                    print(f"  skip  {name}  (sibling repo not on this machine: {', '.join(missing)})")
                     continue
                 r = subprocess.run([bash, "-e", "-c", script], cwd=wt, capture_output=True, text=True,
-                                   encoding="utf-8", errors="replace", timeout=600)
+                                   encoding="utf-8", errors="replace", timeout=600,
+                                   env={**os.environ, "CI": "true",
+                                        # the folders GitHub's runner provides, so steps that use them run as written
+                                        "GITHUB_WORKSPACE": str(wt).replace("\\", "/"),
+                                        "RUNNER_TEMP": str(runner_temp).replace("\\", "/")})
                 ran += 1
                 if r.returncode == 0:
                     print(f"  ok    {name}")
@@ -89,6 +106,20 @@ def main() -> int:
                     failed.append(name)
                     print(f"  FAIL  {name}")
                     print("\n".join("        " + l for l in (r.stdout + r.stderr).strip().splitlines()[-15:]))
+        # A plugin push can drift from the family's shared parts, which cairn-principles only
+        # checks daily. Run that check now, against this commit, so it can't go red tomorrow.
+        drift = repo.parent / "cairn-principles" / "scripts" / "check_drift.py"
+        if (wt / ".claude-plugin" / "plugin.json").exists() and drift.exists():
+            r = subprocess.run([sys.executable, str(drift), str(wt)], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=300)
+            ran += 1
+            label = "matches the Cairn family's shared parts (cairn-principles drift check)"
+            if r.returncode == 0:
+                print(f"  ok    {label}")
+            else:
+                failed.append(label)
+                print(f"  FAIL  {label}")
+                print("\n".join("        " + l for l in (r.stdout + r.stderr).strip().splitlines()[-10:]))
         if (wt / ".claude-plugin" / "plugin.json").exists() and shutil.which("claude"):
             r = subprocess.run(["claude", "plugin", "validate", "--strict", "."], cwd=wt, capture_output=True, text=True)
             ran += 1
