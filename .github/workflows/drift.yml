@@ -31,3 +31,8 @@ jobs:
         run: python scripts/check_drift.py --self-test
       - name: The three plugin repos match the reference
         run: python scripts/check_drift.py plugins/claude-md-memory-architecture plugins/llm-silent-failure-audit plugins/did-ai-really-fix-it
+      - name: Every Cairn repo passes Cairn Memory's audit (this one and the three plugins)
+        run: |
+          for r in . plugins/claude-md-memory-architecture plugins/llm-silent-failure-audit plugins/did-ai-really-fix-it; do
+            echo "== $r"; (cd "$r" && python "$GITHUB_WORKSPACE/plugins/claude-md-memory-architecture/skills/memory-architecture/scripts/audit_memory.py" --repo .)
+          done
