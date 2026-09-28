@@ -98,8 +98,8 @@ Each principle has four parts: **Trigger** (when it applies), **Do** (what to do
 - **Known ways an instrument agrees with itself:** shell quoting that eats backslashes, a
   replace that silently matches nothing, a stale cached build, a search scoped narrower
   than you think.
-- **Where Cairn enforces it:** every plugin's `--self-test`, run in CI on every push (22,
-  11 and 19 planted defects).
+- **Where Cairn enforces it:** every plugin's `--self-test`, run in CI on every push. Each
+  plugin's README states its count, and CI fails if that count and the self-test disagree.
 
 > *Incident:* in one project, twelve times a check failed right after a change that measured
 > well, and every time the check was wrong, not the product.

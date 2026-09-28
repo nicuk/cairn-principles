@@ -20,9 +20,14 @@ Cairn plugins. The plugins live in their own repos: `claude-md-memory-architectu
 
 ## Rules
 
+Each rule names what enforces it, or says that nothing does. The audit warns on a rule here
+that does neither.
+
 - **This repo is public.** Plans, internal scores, client names and anything under an NDA
-  never go here. The working plan lives in a separate private repo.
+  never go here. The working plan lives in a separate private repo. Not enforced: a script
+  can't tell a plan or a client name from prose, so read the diff for them before pushing.
 - **Every number here must be reproducible, or say that it isn't.** Give each new result
-  its date and the command or fixture behind it.
+  its date and the command or fixture behind it. Not enforced: check each new number against
+  the run it came from. The plugins' own self-test counts are enforced in their repos.
 - **Incidents stay anonymised:** describe the kind of product ("a production RAG SaaS"),
-  never the product.
+  never the product. Not enforced: read the diff for product names before pushing.
