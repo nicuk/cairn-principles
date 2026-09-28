@@ -1,7 +1,8 @@
 # Evidence
 
 What each plugin has been tested on, what the results were (including the ones that
-didn't favour it), and what hasn't been tested yet. As of 2026-09-27 (all three plugins at 1.2.0).
+didn't favour it), and what hasn't been tested yet. As of 2026-09-28: Cairn Memory at 1.4.1,
+Cairn Signals and Cairn Verify at 1.2.0.
 
 The same rule applies throughout: a result is only reported if it could have come out the
 other way.
@@ -33,10 +34,11 @@ fresh prompts they weren't changed for. One run per prompt, so treat single miss
 
 | | |
 |---|---|
-| **Self-test** | 22 checks, each fired on a planted defect, plus 26 cases built from the false alarms real repositories produced (1.2.0), each broken once to prove it can fail; run in CI on every push |
+| **Self-test** | 25 checks, each fired on a planted defect, plus 46 cases run against a planted repository, including one for each false alarm real repositories produced, and 8 that run `--project` end to end (1.4.1; 22 and 26 in 1.2.0), each broken once to prove it can fail; run in CI on every push |
 | **With vs without the skill** | 93% of checks passed vs 71%, over 2 prompts (auditing a bloated memory folder; routing five facts for a new repo), 1 run each |
 | **Cost of using it** | about 25k more tokens and 105 s more per task, mostly from running the audit script and checking the proposed files |
 | **On real setups** | Across about fifteen real repositories and memory folders it found: indexes costing about 2,500 tokens per session; a memory the index never pointed to, so no session had ever seen it; four files each claiming to be the current direction; a one-time instruction loaded into every session for months |
+| **On 32 real repositories** | 2026-09-28, `--project` on each repo on one developer's machine: the repo, its memory folder and the global file, about 2 s in total. Every FAIL was checked by hand. Two were real: a memory missing from its index while still calling itself the active plan, and an index entry pointing at a memory that no longer exists. The rest were two false-alarm classes, a skill installed in a gitignored folder (37 FAILs on one repo) and a model id in backticks, both fixed in 1.4.1 with a planted case each. Warnings included three indexes over the load budget and 21 repositories with no `CLAUDE.md` or `AGENTS.md`. The repositories are private, so this run can't be repeated by others |
 | **Trigger rate** | First set: 7 of 10 prompts it should handle, 0 of 10 near-misses. The misses were narrow questions (which CLAUDE.md files load, why a rule was ignored), so the description was changed; the first fresh set then scored only 2 of 5, and after a second change a new fresh set scored 5 of 5, still with 0 false triggers |
 | **`--draft-index`** | on a real 47-memory index: 10,078 bytes to 6,934 (about 2,500 to 1,700 tokens a session), every memory still linked, over-long lines 29 to 0. It did not reach the 3 KB budget, because 47 memories don't fit at one line each; merging them is left to the skill, and the script says so |
 | **On repositories the author didn't build** | 1.1.0 crashed on one of four and none of its blocking findings was real; 1.2.0 fixed both. See [below](#on-repositories-the-author-didnt-build) |
@@ -59,7 +61,7 @@ fresh prompts they weren't changed for. One run per prompt, so treat single miss
 |---|---|
 | **Self-test** | 55 checks in 1.2.0 (23 in 1.1.0): each detection fires on a planted defect, and each false-alarm fix has a case that must stay quiet, broken once to prove it can fail; plus a check that a `GIT_DIR` inherited from a git hook never reaches the real repository; run in CI |
 | **With vs without the skill** | **No accuracy difference.** Over two rounds and 8 runs, on two made-up apps built to overclaim (a fix in a dead copy, a test dropped in config, a dynamic import broken by a deletion, an unwired feature), both conditions found every planted problem. With the skill, every run also proved each verdict by running the code at each commit, gave a score, and ended with a message to paste to the agent, at about 70 s more per run |
-| **On a real codebase** | On a 504-file app built with coding agents, the orphan scan found all 22 dead files the repo's own guard listed, plus 10 real ones the guard missed, in 0.6 s |
+| **On a real codebase** | On a 504-file app built with coding agents, the orphan scan found 21 of the 22 dead files the repo's own guard listed, and the 22nd as a file named but never imported, plus 10 real ones the guard missed, in 0.6 s |
 | **Precision on real commits** | Run on twelve real commits, the first version flagged 18 claims as unproven, and about half were prose ("thresholds are fixed"). After two precision fixes, 7, each a fair question. An honest deletion commit gets zero contradictions |
 | **Known limit** | it can't follow an import built from a string at runtime, so the skill starts the app once before calling anything dead |
 | **Trigger rate** | First set: 10 of 10 prompts it should handle, 0 of 10 near-misses. Fresh set, same description: 4 of 5, 0 false triggers |
